@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: plant-delivery-api
+    env: python
+    plan: starter  # Change to 'standard' or 'pro' for production
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: PYTHONUNBUFFERED
+        value: 1
+    healthCheckPath: /health
+    # Manual deployment via CLI or Dashboard
+    # autoDeploy: true  # Enable if using Git repository
+
