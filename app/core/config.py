@@ -9,6 +9,7 @@ import sys
 class Settings(BaseSettings):
     # Core settings
     debug: bool = False
+    enable_docs: bool = False  # Enable API docs in production (set ENABLE_DOCS=True)
     secret_key: str = "change-me-in-production"  # Default for development
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 30

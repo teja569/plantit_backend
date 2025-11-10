@@ -91,8 +91,8 @@ app = FastAPI(
     title="Plant Delivery API",
     description="A production-ready FastAPI backend for Plant Delivery Mobile App with AI-powered plant detection",
     version="1.0.0",
-    docs_url="/docs" if settings.debug else None,  # Disable docs in production
-    redoc_url="/redoc" if settings.debug else None,  # Disable redoc in production
+    docs_url="/docs" if (settings.debug or settings.enable_docs) else None,  # Enable docs if debug or enable_docs is True
+    redoc_url="/redoc" if (settings.debug or settings.enable_docs) else None,  # Enable redoc if debug or enable_docs is True
     lifespan=lifespan
 )
 
@@ -192,8 +192,8 @@ async def root():
     return {
         "message": "Plant Delivery API",
         "version": "1.0.0",
-        "docs": "/docs" if settings.debug else None,
-        "redoc": "/redoc" if settings.debug else None,
+        "docs": "/docs" if (settings.debug or settings.enable_docs) else None,
+        "redoc": "/redoc" if (settings.debug or settings.enable_docs) else None,
         "environment": "production" if not settings.debug else "development"
     }
 
