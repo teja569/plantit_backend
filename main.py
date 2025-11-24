@@ -77,7 +77,8 @@ async def lifespan(app: FastAPI):
     should_create_tables = (
         settings.debug or 
         os.getenv("CREATE_TABLES", "false").lower() == "true" or
-        os.getenv("RENDER") is not None  # Always create tables on Render if needed
+        os.getenv("RENDER") is not None or  # Always create tables on Render if needed
+        os.getenv("AWS_EXECUTION_ENV") is not None  # Always create tables on AWS/EC2 if needed
     )
     
     if should_create_tables:
