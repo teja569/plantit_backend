@@ -48,12 +48,19 @@ class UserService:
     
     def authenticate_user(self, email: str, password: str) -> Optional[User]:
         """Authenticate user with email and password"""
-        user = self.db.query(User).filter(User.email == email).first()
-        if not user:
-            return None
-        if not verify_password(password, user.password_hash):
-            return None
-        return user
+        try:
+            user = self.db.query(User).filter(User.email == email).first()
+            if not user:
+                return None
+            if not verify_password(password, user.password_hash):
+                return None
+            return user
+        except Exception as e:
+            # Log database errors but don't expose details to client
+            from app.core.logging import logger
+            logger.error(f"Database error during authentication: {type(e).__name__}: {str(e)}", exc_info=True)
+            # Re-raise to be handled by the endpoint
+            raise
     
     def get_user_by_id(self, user_id: int) -> Optional[User]:
         """Get user by ID"""

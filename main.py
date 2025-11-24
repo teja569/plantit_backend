@@ -71,14 +71,32 @@ async def lifespan(app: FastAPI):
     logger.info(f"Render: {os.getenv('RENDER', 'False')}")
     logger.info(f"Vercel: {os.getenv('VERCEL', 'False')}")
     
-    # Only create tables in development or if explicitly enabled
-    # In production, use migrations (alembic)
-    if settings.debug or os.getenv("CREATE_TABLES", "false").lower() == "true":
+    # Create tables if they don't exist
+    # In production (Render), create tables if CREATE_TABLES is enabled or if tables don't exist
+    # This ensures the app works even if migrations haven't been run
+    should_create_tables = (
+        settings.debug or 
+        os.getenv("CREATE_TABLES", "false").lower() == "true" or
+        os.getenv("RENDER") is not None  # Always create tables on Render if needed
+    )
+    
+    if should_create_tables:
         try:
-            Base.metadata.create_all(bind=engine)
-            logger.info("Database tables created/verified")
+            # Test if tables exist by trying to query
+            from sqlalchemy import inspect
+            inspector = inspect(engine)
+            existing_tables = inspector.get_table_names()
+            
+            if not existing_tables or "users" not in existing_tables:
+                logger.info("Creating database tables...")
+                Base.metadata.create_all(bind=engine)
+                logger.info("Database tables created successfully")
+            else:
+                logger.info("Database tables already exist")
         except Exception as e:
-            logger.error(f"Failed to create database tables: {e}")
+            logger.error(f"Failed to create/verify database tables: {e}", exc_info=True)
+            # Don't fail startup, but log the error
+            # The app might still work if tables exist from migrations
     
     yield
     

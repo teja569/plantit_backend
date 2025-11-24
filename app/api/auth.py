@@ -29,28 +29,40 @@ async def login(
     db: Session = Depends(get_db)
 ):
     """Login user and return access token"""
-    user_service = UserService(db)
-    user = user_service.authenticate_user(user_credentials.email, user_credentials.password)
-    
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
-            headers={"WWW-Authenticate": "Bearer"},
+    try:
+        user_service = UserService(db)
+        user = user_service.authenticate_user(user_credentials.email, user_credentials.password)
+        
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Incorrect email or password",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        
+        if not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Inactive user"
+            )
+        
+        access_token_expires = timedelta(minutes=settings.access_token_expire_minutes)
+        access_token = create_access_token(
+            data={"sub": str(user.id)}, expires_delta=access_token_expires
         )
-    
-    if not user.is_active:
+        
+        return {"access_token": access_token, "token_type": "bearer"}
+    except HTTPException:
+        # Re-raise HTTP exceptions (authentication errors)
+        raise
+    except Exception as e:
+        # Log unexpected errors and return generic error
+        from app.core.logging import logger
+        logger.error(f"Login error: {type(e).__name__}: {str(e)}", exc_info=True)
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Inactive user"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred during login. Please try again later."
         )
-    
-    access_token_expires = timedelta(minutes=settings.access_token_expire_minutes)
-    access_token = create_access_token(
-        data={"sub": str(user.id)}, expires_delta=access_token_expires
-    )
-    
-    return {"access_token": access_token, "token_type": "bearer"}
 
 
 @router.post("/login-form", response_model=Token)

@@ -75,5 +75,11 @@ def get_db():
     db = SessionLocal()
     try:
         yield db
+    except Exception as e:
+        # Rollback on any exception
+        db.rollback()
+        from app.core.logging import logger
+        logger.error(f"Database session error: {type(e).__name__}: {str(e)}", exc_info=True)
+        raise
     finally:
         db.close()
