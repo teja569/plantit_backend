@@ -1,0 +1,26 @@
+# Copy this file to terraform.tfvars and fill in your values
+# terraform.tfvars is in .gitignore and should not be committed
+
+aws_region = "us-east-1"
+environment = "production"
+project_name = "plant-delivery-api"
+
+vpc_cidr = "10.0.0.0/16"
+availability_zones = ["us-east-1a", "us-east-1b"]
+private_subnet_cidrs = ["10.0.1.0/24", "10.0.2.0/24"]
+public_subnet_cidrs = ["10.0.101.0/24", "10.0.102.0/24"]
+
+# RDS Configuration
+db_instance_class = "db.t3.micro"  # Use db.t3.small or larger for production
+db_allocated_storage = 20
+db_max_allocated_storage = 100
+db_name = "plantdelivery"
+db_username = "postgres"
+db_password = "CHANGE_THIS_PASSWORD"  # Use AWS Secrets Manager in production
+
+# SSL Certificate (from ACM)
+ssl_certificate_arn = "arn:aws:acm:us-east-1:ACCOUNT_ID:certificate/CERT_ID"
+
+# Logging
+log_retention_days = 30
+

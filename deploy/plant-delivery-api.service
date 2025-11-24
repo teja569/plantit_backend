@@ -1,0 +1,37 @@
+[Unit]
+Description=Plant Delivery API
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/opt/plant-delivery-api
+Environment="PATH=/opt/plant-delivery-api/venv/bin"
+Environment="PYTHONUNBUFFERED=1"
+Environment="PYTHONPATH=/opt/plant-delivery-api"
+
+# Load environment variables from .env file
+EnvironmentFile=/opt/plant-delivery-api/.env
+
+ExecStart=/opt/plant-delivery-api/venv/bin/uvicorn main:app \
+    --host 0.0.0.0 \
+    --port 8000 \
+    --workers 4 \
+    --log-level info
+
+Restart=always
+RestartSec=10
+
+# Security
+NoNewPrivileges=true
+PrivateTmp=true
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=plant-delivery-api
+
+[Install]
+WantedBy=multi-user.target
+

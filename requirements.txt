@@ -19,9 +19,9 @@ pydantic-settings==2.0.3
 python-dotenv==1.0.0
 email-validator>=2.0.0
 
-# Cloud storage (choose one - boto3 is large, prefer cloudinary for serverless)
-# boto3==1.34.0  # Commented out - use cloudinary instead for smaller size
-cloudinary==1.36.0
+# Cloud storage
+boto3==1.34.0  # Required for AWS S3
+cloudinary==1.36.0  # Alternative cloud storage
 
 # ML and AI - Using Google Gemini API
 google-generativeai>=0.3.0

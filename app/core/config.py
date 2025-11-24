@@ -80,6 +80,9 @@ class Settings(BaseSettings):
     # Vercel
     vercel_url: Optional[str] = None
     
+    # AWS
+    aws_environment: Optional[str] = None  # Set to "production" when running on AWS
+    
     # Logging
     log_level: str = "INFO"
     log_file: str = "logs/app.log"
@@ -117,7 +120,12 @@ try:
     
     # Validate required settings in production
     # Render sets RENDER environment variable, or check for production indicators
-    is_production = os.getenv("RENDER") is not None or os.getenv("VERCEL") is not None
+    is_production = (
+        os.getenv("RENDER") is not None or 
+        os.getenv("VERCEL") is not None or 
+        os.getenv("AWS_EXECUTION_ENV") is not None or
+        os.getenv("ENVIRONMENT", "").lower() == "production"
+    )
     is_debug = os.getenv("DEBUG", "").lower() == "true"
     
     # Log environment info for debugging (always print, flush immediately)
