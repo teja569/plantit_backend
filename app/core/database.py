@@ -54,13 +54,13 @@ try:
         # For Prisma/Postgres, ensure proper encoding
         echo=False  # Set to True for SQL query logging (debug only)
     )
-    print(f"✅ Database engine created successfully", flush=True)
+    print(f"[OK] Database engine created successfully", flush=True)
     print(f"   Pool class: {poolclass.__name__}", flush=True)
     print(f"   Database type: {'PostgreSQL' if is_postgres else 'Other'}", flush=True)
 except Exception as e:
     import sys
     import traceback
-    print(f"❌ Failed to create database engine: {type(e).__name__}: {e}", file=sys.stderr, flush=True)
+    print(f"[ERROR] Failed to create database engine: {type(e).__name__}: {e}", file=sys.stderr, flush=True)
     print(f"   DATABASE_URL preview: {settings.database_url[:80]}...", file=sys.stderr, flush=True)
     traceback.print_exc(file=sys.stderr)
     raise

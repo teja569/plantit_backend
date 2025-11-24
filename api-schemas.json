@@ -1,0 +1,427 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "definitions": {
+    "User": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "integer" },
+        "name": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "phone": { "type": "string", "nullable": true },
+        "address": { "type": "string", "nullable": true },
+        "role": { 
+          "type": "string",
+          "enum": ["user", "seller", "admin", "super_admin", "manager"]
+        },
+        "is_active": { "type": "boolean" },
+        "is_verified": { "type": "boolean" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "email", "role", "is_active", "is_verified", "created_at"]
+    },
+    "UserCreate": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "password": { "type": "string", "minLength": 6 },
+        "phone": { "type": "string", "nullable": true },
+        "address": { "type": "string", "nullable": true },
+        "role": { 
+          "type": "string",
+          "enum": ["user", "seller", "admin", "super_admin", "manager"],
+          "default": "user"
+        }
+      },
+      "required": ["name", "email", "password"]
+    },
+    "UserLogin": {
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "format": "email" },
+        "password": { "type": "string" }
+      },
+      "required": ["email", "password"]
+    },
+    "Token": {
+      "type": "object",
+      "properties": {
+        "access_token": { "type": "string" },
+        "token_type": { "type": "string", "default": "bearer" }
+      },
+      "required": ["access_token", "token_type"]
+    },
+    "Plant": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "integer" },
+        "name": { "type": "string" },
+        "description": { "type": "string", "nullable": true },
+        "price": { "type": "number", "minimum": 0 },
+        "category": { "type": "string", "nullable": true },
+        "species": { "type": "string", "nullable": true },
+        "care_instructions": { "type": "string", "nullable": true },
+        "stock_quantity": { "type": "integer", "minimum": 0 },
+        "image_url": { "type": "string", "nullable": true },
+        "seller_id": { "type": "integer" },
+        "verified_by_ai": { "type": "boolean" },
+        "is_active": { "type": "boolean" },
+        "created_at": { "type": "string", "format": "date-time" },
+        "updated_at": { "type": "string", "format": "date-time", "nullable": true }
+      },
+      "required": ["id", "name", "price", "stock_quantity", "seller_id", "verified_by_ai", "is_active", "created_at"]
+    },
+    "PlantListResponse": {
+      "type": "object",
+      "properties": {
+        "plants": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Plant" }
+        },
+        "total": { "type": "integer" },
+        "page": { "type": "integer" },
+        "size": { "type": "integer" },
+        "pages": { "type": "integer" }
+      },
+      "required": ["plants", "total", "page", "size", "pages"]
+    },
+    "CartItem": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "integer" },
+        "plant_id": { "type": "integer" },
+        "quantity": { "type": "integer", "minimum": 1 },
+        "unit_price": { "type": "number", "minimum": 0 }
+      },
+      "required": ["id", "plant_id", "quantity", "unit_price"]
+    },
+    "Cart": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "integer" },
+        "items": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/CartItem" }
+        },
+        "total_quantity": { "type": "integer" },
+        "total_price": { "type": "number" }
+      },
+      "required": ["id", "items", "total_quantity", "total_price"]
+    },
+    "CartItemCreate": {
+      "type": "object",
+      "properties": {
+        "plant_id": { "type": "integer" },
+        "quantity": { "type": "integer", "minimum": 1 }
+      },
+      "required": ["plant_id", "quantity"]
+    },
+    "OrderItem": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "integer" },
+        "plant_id": { "type": "integer" },
+        "quantity": { "type": "integer" },
+        "unit_price": { "type": "number" },
+        "plant_name": { "type": "string" }
+      },
+      "required": ["id", "plant_id", "quantity", "unit_price", "plant_name"]
+    },
+    "Order": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "integer" },
+        "buyer_id": { "type": "integer" },
+        "seller_id": { "type": "integer" },
+        "delivery_agent_id": { "type": "integer", "nullable": true },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "confirmed", "shipped", "delivered", "cancelled"]
+        },
+        "total_price": { "type": "number" },
+        "shipping_address": { "type": "string" },
+        "notes": { "type": "string", "nullable": true },
+        "created_at": { "type": "string", "format": "date-time" },
+        "updated_at": { "type": "string", "format": "date-time", "nullable": true },
+        "order_items": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/OrderItem" }
+        }
+      },
+      "required": ["id", "buyer_id", "seller_id", "status", "total_price", "shipping_address", "created_at", "order_items"]
+    },
+    "OrderCreate": {
+      "type": "object",
+      "properties": {
+        "seller_id": { "type": "integer" },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "plant_id": { "type": "integer" },
+              "quantity": { "type": "integer", "minimum": 1 }
+            },
+            "required": ["plant_id", "quantity"]
+          }
+        },
+        "shipping_address": { "type": "string" },
+        "notes": { "type": "string", "nullable": true }
+      },
+      "required": ["seller_id", "items", "shipping_address"]
+    },
+    "OrderListResponse": {
+      "type": "object",
+      "properties": {
+        "orders": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Order" }
+        },
+        "total": { "type": "integer" },
+        "page": { "type": "integer" },
+        "size": { "type": "integer" },
+        "pages": { "type": "integer" }
+      },
+      "required": ["orders", "total", "page", "size", "pages"]
+    },
+    "CheckoutRequest": {
+      "type": "object",
+      "properties": {
+        "shipping_address": { "type": "string" },
+        "notes": { "type": "string", "nullable": true },
+        "payment_method": {
+          "type": "string",
+          "enum": ["cod", "razorpay"]
+        }
+      },
+      "required": ["shipping_address", "payment_method"]
+    },
+    "CheckoutResponse": {
+      "type": "object",
+      "properties": {
+        "orders": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "order_id": { "type": "integer" },
+              "seller_id": { "type": "integer" },
+              "total_price": { "type": "number" },
+              "status": { "type": "string" }
+            },
+            "required": ["order_id", "seller_id", "total_price", "status"]
+          }
+        },
+        "payment_required": { "type": "boolean" },
+        "payment_provider": { "type": "string", "nullable": true },
+        "payment_payload": { "type": "object", "nullable": true }
+      },
+      "required": ["orders", "payment_required"]
+    },
+    "Review": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "integer" },
+        "user_id": { "type": "integer" },
+        "plant_id": { "type": "integer" },
+        "rating": { "type": "integer", "minimum": 1, "maximum": 5 },
+        "comment": { "type": "string", "nullable": true },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "user_id", "plant_id", "rating", "created_at"]
+    },
+    "ReviewCreate": {
+      "type": "object",
+      "properties": {
+        "plant_id": { "type": "integer" },
+        "rating": { "type": "integer", "minimum": 1, "maximum": 5 },
+        "comment": { "type": "string", "nullable": true }
+      },
+      "required": ["plant_id", "rating"]
+    },
+    "ReviewListResponse": {
+      "type": "object",
+      "properties": {
+        "reviews": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Review" }
+        },
+        "average_rating": { "type": "number" },
+        "total": { "type": "integer" }
+      },
+      "required": ["reviews", "average_rating", "total"]
+    },
+    "PredictionResponse": {
+      "type": "object",
+      "properties": {
+        "is_plant": { "type": "boolean" },
+        "plant_type": { "type": "string" },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "prediction_id": { "type": "integer", "nullable": true }
+      },
+      "required": ["is_plant", "plant_type", "confidence"]
+    },
+    "RazorpayOrderRequest": {
+      "type": "object",
+      "properties": {
+        "order_id": { "type": "integer" }
+      },
+      "required": ["order_id"]
+    },
+    "RazorpayOrderResponse": {
+      "type": "object",
+      "properties": {
+        "provider": { "type": "string", "default": "razorpay" },
+        "amount": { "type": "number" },
+        "currency": { "type": "string", "default": "INR" },
+        "provider_order_id": { "type": "string" },
+        "receipt": { "type": "string" }
+      },
+      "required": ["amount", "provider_order_id", "receipt"]
+    },
+    "SellerOnboarding": {
+      "type": "object",
+      "properties": {
+        "business_name": { "type": "string" },
+        "business_type": { "type": "string" },
+        "tax_id": { "type": "string", "nullable": true },
+        "business_address": { "type": "string" },
+        "business_phone": { "type": "string" },
+        "business_email": { "type": "string", "format": "email" },
+        "description": { "type": "string", "nullable": true }
+      },
+      "required": ["business_name", "business_type", "business_address", "business_phone", "business_email"]
+    },
+    "SellerDashboard": {
+      "type": "object",
+      "properties": {
+        "total_plants": { "type": "integer" },
+        "active_plants": { "type": "integer" },
+        "total_orders": { "type": "integer" },
+        "pending_orders": { "type": "integer" },
+        "completed_orders": { "type": "integer" },
+        "total_revenue": { "type": "number" },
+        "monthly_revenue": { "type": "number" },
+        "top_selling_plants": { "type": "array" },
+        "recent_orders": { "type": "array" }
+      },
+      "required": ["total_plants", "active_plants", "total_orders", "pending_orders", "completed_orders", "total_revenue", "monthly_revenue"]
+    },
+    "ErrorResponse": {
+      "type": "object",
+      "properties": {
+        "error": { "type": "string" },
+        "status_code": { "type": "integer" },
+        "path": { "type": "string" },
+        "details": { "type": "array", "nullable": true }
+      },
+      "required": ["error", "status_code", "path"]
+    }
+  },
+  "endpoints": {
+    "auth": {
+      "register": {
+        "method": "POST",
+        "path": "/auth/register",
+        "request": { "$ref": "#/definitions/UserCreate" },
+        "response": { "$ref": "#/definitions/User" }
+      },
+      "login": {
+        "method": "POST",
+        "path": "/auth/login",
+        "request": { "$ref": "#/definitions/UserLogin" },
+        "response": { "$ref": "#/definitions/Token" }
+      },
+      "me": {
+        "method": "GET",
+        "path": "/auth/me",
+        "requiresAuth": true,
+        "response": { "$ref": "#/definitions/User" }
+      }
+    },
+    "plants": {
+      "list": {
+        "method": "GET",
+        "path": "/plants/",
+        "queryParams": {
+          "name": { "type": "string", "optional": true },
+          "category": { "type": "string", "optional": true },
+          "min_price": { "type": "number", "optional": true },
+          "max_price": { "type": "number", "optional": true },
+          "verified_only": { "type": "boolean", "optional": true },
+          "page": { "type": "integer", "default": 1 },
+          "size": { "type": "integer", "default": 20 }
+        },
+        "response": { "$ref": "#/definitions/PlantListResponse" }
+      },
+      "get": {
+        "method": "GET",
+        "path": "/plants/{plant_id}",
+        "response": { "$ref": "#/definitions/Plant" }
+      },
+      "predict": {
+        "method": "POST",
+        "path": "/plants/predict",
+        "requiresAuth": true,
+        "contentType": "multipart/form-data",
+        "response": { "$ref": "#/definitions/PredictionResponse" }
+      }
+    },
+    "cart": {
+      "get": {
+        "method": "GET",
+        "path": "/cart/",
+        "requiresAuth": true,
+        "response": { "$ref": "#/definitions/Cart" }
+      },
+      "addItem": {
+        "method": "POST",
+        "path": "/cart/items",
+        "requiresAuth": true,
+        "request": { "$ref": "#/definitions/CartItemCreate" },
+        "response": { "$ref": "#/definitions/Cart" }
+      }
+    },
+    "orders": {
+      "create": {
+        "method": "POST",
+        "path": "/orders/",
+        "requiresAuth": true,
+        "request": { "$ref": "#/definitions/OrderCreate" },
+        "response": { "$ref": "#/definitions/Order" }
+      },
+      "list": {
+        "method": "GET",
+        "path": "/orders/",
+        "requiresAuth": true,
+        "queryParams": {
+          "page": { "type": "integer", "default": 1 },
+          "size": { "type": "integer", "default": 20 }
+        },
+        "response": { "$ref": "#/definitions/OrderListResponse" }
+      },
+      "checkout": {
+        "method": "POST",
+        "path": "/orders/checkout",
+        "requiresAuth": true,
+        "request": { "$ref": "#/definitions/CheckoutRequest" },
+        "response": { "$ref": "#/definitions/CheckoutResponse" }
+      }
+    },
+    "reviews": {
+      "create": {
+        "method": "POST",
+        "path": "/reviews/",
+        "requiresAuth": true,
+        "request": { "$ref": "#/definitions/ReviewCreate" },
+        "response": { "$ref": "#/definitions/Review" }
+      },
+      "getByPlant": {
+        "method": "GET",
+        "path": "/reviews/plant/{plant_id}",
+        "response": { "$ref": "#/definitions/ReviewListResponse" }
+      }
+    }
+  }
+}
+

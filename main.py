@@ -13,42 +13,42 @@ import traceback
 
 # Import with better error handling and flushing for Vercel logs
 try:
-    print("📦 Loading config...", flush=True)
+    print("[*] Loading config...", flush=True)
     from app.core.config import settings
-    print("✅ Config loaded", flush=True)
+    print("[OK] Config loaded", flush=True)
 except Exception as e:
     import traceback
-    print(f"❌ Failed to load config: {type(e).__name__}: {e}", flush=True)
+    print(f"[ERROR] Failed to load config: {type(e).__name__}: {e}", flush=True)
     traceback.print_exc()
     raise
 
 try:
-    print("📦 Loading database config...", flush=True)
+    print("[*] Loading database config...", flush=True)
     from app.core.database import engine, Base
-    print("✅ Database config loaded", flush=True)
+    print("[OK] Database config loaded", flush=True)
 except Exception as e:
     import traceback
-    print(f"❌ Failed to load database config: {type(e).__name__}: {e}", flush=True)
+    print(f"[ERROR] Failed to load database config: {type(e).__name__}: {e}", flush=True)
     traceback.print_exc()
     raise
 
 try:
-    print("📦 Configuring logging...", flush=True)
+    print("[*] Configuring logging...", flush=True)
     from app.core.logging import logger
-    print("✅ Logging configured", flush=True)
+    print("[OK] Logging configured", flush=True)
 except Exception as e:
     import traceback
-    print(f"❌ Failed to configure logging: {type(e).__name__}: {e}", flush=True)
+    print(f"[ERROR] Failed to configure logging: {type(e).__name__}: {e}", flush=True)
     traceback.print_exc()
     raise
 
 try:
-    print("📦 Loading API routes...", flush=True)
+    print("[*] Loading API routes...", flush=True)
     from app.api import auth, users, plants, orders, delivery, admin, seller, cart, payments, reviews, categories, notifications
-    print("✅ API routes loaded", flush=True)
+    print("[OK] API routes loaded", flush=True)
 except Exception as e:
     import traceback
-    print(f"❌ Failed to load API routes: {type(e).__name__}: {e}", flush=True)
+    print(f"[ERROR] Failed to load API routes: {type(e).__name__}: {e}", flush=True)
     traceback.print_exc()
     raise
 
@@ -58,7 +58,7 @@ try:
     limiter = Limiter(key_func=get_remote_address)
 except Exception as e:
     # Use print instead of logger since logger might not be initialized yet
-    print(f"⚠️ Rate limiter initialization failed: {e}. Continuing without rate limiting.", flush=True)
+    print(f"[WARNING] Rate limiter initialization failed: {e}. Continuing without rate limiting.", flush=True)
     limiter = None
 
 
@@ -91,8 +91,8 @@ app = FastAPI(
     title="Plant Delivery API",
     description="A production-ready FastAPI backend for Plant Delivery Mobile App with AI-powered plant detection",
     version="1.0.0",
-    docs_url="/docs" if (settings.debug or settings.enable_docs) else None,  # Enable docs if debug or enable_docs is True
-    redoc_url="/redoc" if (settings.debug or settings.enable_docs) else None,  # Enable redoc if debug or enable_docs is True
+    docs_url="/docs",  # Always enable docs for development
+    redoc_url="/redoc",  # Always enable redoc for development
     lifespan=lifespan
 )
 
@@ -192,8 +192,8 @@ async def root():
     return {
         "message": "Plant Delivery API",
         "version": "1.0.0",
-        "docs": "/docs" if (settings.debug or settings.enable_docs) else None,
-        "redoc": "/redoc" if (settings.debug or settings.enable_docs) else None,
+        "docs": "/docs",
+        "redoc": "/redoc",
         "environment": "production" if not settings.debug else "development"
     }
 

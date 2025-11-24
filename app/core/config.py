@@ -96,6 +96,9 @@ class Settings(BaseSettings):
     
     def get_allowed_origins_list(self) -> List[str]:
         """Get allowed_origins as a list"""
+        # If "*" is specified, allow all origins (useful for mobile apps)
+        if self.allowed_origins.strip() == "*":
+            return ["*"]
         # Split by comma and strip whitespace
         return [origin.strip() for origin in self.allowed_origins.split(',') if origin.strip()]
     
@@ -109,7 +112,7 @@ class Settings(BaseSettings):
 
 # Initialize settings with validation
 try:
-    print("📋 Initializing settings...", flush=True)
+    print("[*] Initializing settings...", flush=True)
     settings = Settings()
     
     # Validate required settings in production
@@ -118,7 +121,7 @@ try:
     is_debug = os.getenv("DEBUG", "").lower() == "true"
     
     # Log environment info for debugging (always print, flush immediately)
-    print(f"🔍 Environment check:", flush=True)
+    print(f"[*] Environment check:", flush=True)
     print(f"   RENDER={os.getenv('RENDER', 'not set')}", flush=True)
     print(f"   VERCEL={os.getenv('VERCEL', 'not set')}", flush=True)
     print(f"   DEBUG={os.getenv('DEBUG', 'not set')}", flush=True)
@@ -132,7 +135,7 @@ try:
     
     if is_production and not is_debug:
         # Production validation - stricter checks
-        print("🔍 Running production validation...", flush=True)
+        print("[*] Running production validation...", flush=True)
         errors = []
         
         if settings.secret_key == "change-me-in-production":
@@ -148,7 +151,7 @@ try:
             )
         
         if errors:
-            error_msg = "\n".join(f"❌ {e}" for e in errors)
+            error_msg = "\n".join(f"[ERROR] {e}" for e in errors)
             print(error_msg, file=sys.stderr, flush=True)
             print(error_msg, flush=True)  # Also to stdout
             raise ValueError("\n" + error_msg)
@@ -156,13 +159,13 @@ try:
         if not settings.gemini_api_key:
             import warnings
             warnings.warn(
-                "⚠️ GEMINI_API_KEY not set - plant identification will not work. "
+                "[WARNING] GEMINI_API_KEY not set - plant identification will not work. "
                 "Set GEMINI_API_KEY in Vercel environment variables."
             )
-        print("✅ Production validation passed", flush=True)
+        print("[OK] Production validation passed", flush=True)
     else:
         # Development warnings
-        print("🔍 Development mode - using warnings instead of errors", flush=True)
+        print("[*] Development mode - using warnings instead of errors", flush=True)
         if settings.secret_key == "change-me-in-production":
             import warnings
             warnings.warn("SECRET_KEY is using default value! Set SECRET_KEY environment variable in production.")
@@ -170,12 +173,12 @@ try:
             import warnings
             warnings.warn("DATABASE_URL is using default SQLite! Set DATABASE_URL environment variable in production.")
     
-    print("✅ Settings initialized successfully", flush=True)
+    print("[OK] Settings initialized successfully", flush=True)
     
 except Exception as e:
     import sys
     import traceback
-    error_msg = f"❌ Error initializing settings: {type(e).__name__}: {str(e)}"
+    error_msg = f"[ERROR] Error initializing settings: {type(e).__name__}: {str(e)}"
     
     # Print to both streams with flushing
     for stream in [sys.stdout, sys.stderr]:
