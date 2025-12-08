@@ -97,6 +97,10 @@ class PlantService:
         if seller.role not in [UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.MANAGER] and getattr(seller, 'vendor_status', None) != ApprovalStatus.APPROVED:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Vendor not approved")
         
+        # Auto-approve plants created by admins/managers
+        is_admin = seller.role in [UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.MANAGER]
+        approval_status = ApprovalStatus.APPROVED if is_admin else ApprovalStatus.PENDING
+        
         # Handle image: prefer provided image_url, otherwise upload file
         final_image_url = image_url
         if image_file and not final_image_url:
@@ -113,7 +117,7 @@ class PlantService:
             stock_quantity=plant_data.stock_quantity,
             seller_id=seller_id,
             verified_by_ai=verified_by_ai if verified_by_ai is not None else False,
-            approval_status=ApprovalStatus.PENDING
+            approval_status=approval_status
         )
         
         self.db.add(db_plant)
