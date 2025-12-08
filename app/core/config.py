@@ -70,7 +70,7 @@ class Settings(BaseSettings):
     
     # CORS - stored as string to avoid JSON parsing issues
     allowed_origins: str = Field(
-        default="http://localhost:3000,http://localhost:8080",
+        default="http://localhost:3000,http://localhost:8080,https://admin-panel-pink-nine.vercel.app,https://admin-panel-git-main-prasads-projects-514b962a.vercel.app",
         description="Comma-separated list of allowed CORS origins"
     )
     

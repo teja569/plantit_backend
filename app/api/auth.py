@@ -7,7 +7,7 @@ from app.core.security import create_access_token, get_current_active_user
 from app.core.config import settings
 from app.schemas.user import UserCreate, UserResponse, Token, UserLogin
 from app.services.user_service import UserService
-from app.models import User
+from app.models import User, UserRole
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
 
@@ -17,9 +17,28 @@ async def register(
     user_data: UserCreate,
     db: Session = Depends(get_db)
 ):
-    """Register a new user"""
+    """
+    Public registration endpoint for users and sellers.
+
+    - Ignores any attempt to register as admin/super_admin/manager.
+    - Only allows roles: user, seller (defaults to user).
+    """
     user_service = UserService(db)
-    user = user_service.create_user(user_data)
+
+    # Enforce safe roles for public registration
+    role = user_data.role or UserRole.USER
+    if isinstance(role, str):
+        try:
+            role = UserRole(role)
+        except ValueError:
+            role = UserRole.USER
+
+    if role not in (UserRole.USER, UserRole.SELLER):
+        role = UserRole.USER
+
+    safe_data = user_data.model_copy(update={"role": role})
+
+    user = user_service.create_user(safe_data)
     return user
 
 

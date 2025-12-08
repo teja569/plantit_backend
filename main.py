@@ -24,7 +24,7 @@ except Exception as e:
 
 try:
     print("[*] Loading database config...", flush=True)
-    from app.core.database import engine, Base
+    from app.core.database import engine, Base, SessionLocal
     print("[OK] Database config loaded", flush=True)
 except Exception as e:
     import traceback
@@ -44,7 +44,21 @@ except Exception as e:
 
 try:
     print("[*] Loading API routes...", flush=True)
-    from app.api import auth, users, plants, orders, delivery, admin, seller, cart, payments, reviews, categories, notifications
+    from app.api import (
+        auth,
+        users,
+        plants,
+        orders,
+        delivery,
+        admin,
+        seller,
+        cart,
+        payments,
+        reviews,
+        categories,
+        notifications,
+        stores,
+    )
     print("[OK] API routes loaded", flush=True)
 except Exception as e:
     import traceback
@@ -85,6 +99,7 @@ async def lifespan(app: FastAPI):
         try:
             # Test if tables exist by trying to query
             from sqlalchemy import inspect
+
             inspector = inspect(engine)
             existing_tables = inspector.get_table_names()
             
@@ -98,6 +113,57 @@ async def lifespan(app: FastAPI):
             logger.error(f"Failed to create/verify database tables: {e}", exc_info=True)
             # Don't fail startup, but log the error
             # The app might still work if tables exist from migrations
+
+    # Ensure a known admin user exists for initial login (always run, assumes tables exist)
+    try:
+        from app.models import User, UserRole
+        from app.core.security import get_password_hash
+
+        db = SessionLocal()
+        try:
+            default_email = "admin@example.com"
+            default_password = "Admin@1234"
+
+            admin_user = db.query(User).filter(User.email == default_email).first()
+            if admin_user is None:
+                logger.warning(
+                    f"Creating default admin user with email={default_email}. "
+                    "Please change this password immediately in production."
+                )
+                admin_user = User(
+                    name="Default Admin",
+                    email=default_email,
+                    password_hash=get_password_hash(default_password),
+                    role=UserRole.ADMIN,
+                    is_active=True,
+                    is_verified=True,
+                )
+                db.add(admin_user)
+                db.commit()
+                logger.info("Default admin user created successfully")
+            else:
+                # Always ensure role and password are correct for this bootstrap account
+                needs_update = False
+                if admin_user.role not in (UserRole.ADMIN, UserRole.SUPER_ADMIN):
+                    admin_user.role = UserRole.ADMIN
+                    needs_update = True
+                if not admin_user.is_active or not admin_user.is_verified:
+                    admin_user.is_active = True
+                    admin_user.is_verified = True
+                    needs_update = True
+                # Force-set the password so you can always log in with the known credentials
+                admin_user.password_hash = get_password_hash(default_password)
+                needs_update = True
+
+                if needs_update:
+                    db.commit()
+                    logger.info("Default admin user updated with known credentials")
+                else:
+                    logger.info("Default admin user already configured")
+        finally:
+            db.close()
+    except Exception as e:
+        logger.error(f"Failed to seed default admin user: {e}", exc_info=True)
     
     yield
     
@@ -148,6 +214,13 @@ elif os.getenv("VERCEL") is None:
 
 
 # Include routers
+# Include auth router without prefix for admin panel compatibility (/auth/login)
+# The router already has prefix="/auth" defined in app/api/auth.py
+app.include_router(auth)
+# Include admin router without prefix for admin panel compatibility (/admin/users)
+# The router already has prefix="/admin" defined in app/api/admin.py
+app.include_router(admin)
+# Include all routers with /api/v1 prefix
 app.include_router(auth, prefix="/api/v1")
 app.include_router(users, prefix="/api/v1")
 app.include_router(plants, prefix="/api/v1")
@@ -160,14 +233,27 @@ app.include_router(payments, prefix="/api/v1")
 app.include_router(reviews, prefix="/api/v1")
 app.include_router(categories, prefix="/api/v1")
 app.include_router(notifications, prefix="/api/v1")
+app.include_router(stores, prefix="/api/v1")
 
 
 # Global exception handlers - production-ready error handling
+# Helper function to add CORS headers to responses
+def add_cors_headers(response: JSONResponse, request: Request) -> JSONResponse:
+    """Add CORS headers to a response based on the request origin"""
+    origin = request.headers.get("origin")
+    if origin and origin in settings.get_allowed_origins_list():
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+        response.headers["Access-Control-Allow-Methods"] = "*"
+        response.headers["Access-Control-Allow-Headers"] = "*"
+    return response
+
+
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
     """Handle HTTP exceptions"""
     logger.error(f"HTTP {exc.status_code}: {exc.detail} - Path: {request.url.path}")
-    return JSONResponse(
+    response = JSONResponse(
         status_code=exc.status_code,
         content={
             "error": exc.detail,
@@ -175,13 +261,14 @@ async def http_exception_handler(request: Request, exc: HTTPException):
             "path": str(request.url.path)
         }
     )
+    return add_cors_headers(response, request)
 
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     """Handle validation errors"""
     logger.error(f"Validation error: {exc.errors()} - Path: {request.url.path}")
-    return JSONResponse(
+    response = JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         content={
             "error": "Validation error",
@@ -189,13 +276,14 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
             "path": str(request.url.path)
         }
     )
+    return add_cors_headers(response, request)
 
 
 @app.exception_handler(Exception)
 async def general_exception_handler(request: Request, exc: Exception):
     """Handle all other exceptions"""
     logger.error(f"Unhandled exception: {str(exc)}\n{traceback.format_exc()}")
-    return JSONResponse(
+    response = JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content={
             "error": "Internal server error",
@@ -203,6 +291,7 @@ async def general_exception_handler(request: Request, exc: Exception):
             "path": str(request.url.path)
         }
     )
+    return add_cors_headers(response, request)
 
 
 @app.get("/")

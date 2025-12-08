@@ -88,7 +88,7 @@ class PlantService:
                 detail=f"Failed to upload image: {str(e)}"
             )
     
-    def create_plant(self, plant_data: PlantCreate, seller_id: int, image_file: Optional[UploadFile] = None) -> Plant:
+    def create_plant(self, plant_data: PlantCreate, seller_id: int, image_file: Optional[UploadFile] = None, image_url: Optional[str] = None, verified_by_ai: Optional[bool] = None) -> Plant:
         """Create a new plant listing"""
         # Ensure seller is approved or is admin
         seller = self.db.query(User).filter(User.id == seller_id).first()
@@ -96,21 +96,23 @@ class PlantService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Seller not found")
         if seller.role not in [UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.MANAGER] and getattr(seller, 'vendor_status', None) != ApprovalStatus.APPROVED:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Vendor not approved")
-        image_url = None
         
-        if image_file:
-            image_url = self.upload_image_to_s3(image_file)
+        # Handle image: prefer provided image_url, otherwise upload file
+        final_image_url = image_url
+        if image_file and not final_image_url:
+            final_image_url = self.upload_image_to_s3(image_file)
         
         db_plant = Plant(
             name=plant_data.name,
             description=plant_data.description,
-            image_url=image_url,
+            image_url=final_image_url,
             price=plant_data.price,
             category=plant_data.category,
             species=plant_data.species,
             care_instructions=plant_data.care_instructions,
             stock_quantity=plant_data.stock_quantity,
             seller_id=seller_id,
+            verified_by_ai=verified_by_ai if verified_by_ai is not None else False,
             approval_status=ApprovalStatus.PENDING
         )
         

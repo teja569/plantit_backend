@@ -234,3 +234,43 @@ class DeliveryTimeline(Base):
     status = Column(String(50), nullable=False)
     note = Column(Text, nullable=True)
     timestamp = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class Store(Base):
+    __tablename__ = "stores"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(200), nullable=False)
+    address = Column(Text, nullable=False)
+    latitude = Column(Float, nullable=False)
+    longitude = Column(Float, nullable=False)
+    phone = Column(String(20), nullable=True)
+    rating = Column(Float, nullable=True)
+    total_reviews = Column(Integer, nullable=True)
+    is_partner = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class AuditAction(str, enum.Enum):
+    CREATE = "create"
+    UPDATE = "update"
+    DELETE = "delete"
+    STATUS_CHANGE = "status_change"
+    LOGIN = "login"
+    ROLE_CHANGE = "role_change"
+    VERIFY = "verify"
+
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    entity_type = Column(String(50), nullable=False, index=True)
+    entity_id = Column(Integer, nullable=True, index=True)
+    action = Column(Enum(AuditAction), nullable=False)
+    data_before = Column(Text, nullable=True)
+    data_after = Column(Text, nullable=True)
+    # Use a different attribute name to avoid clashing with SQLAlchemy's Base.metadata
+    metadata_json = Column("metadata", Text, nullable=True)
+    timestamp = Column(DateTime(timezone=True), server_default=func.now(), index=True)

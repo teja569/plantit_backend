@@ -15,30 +15,101 @@ router = APIRouter(prefix="/plants", tags=["plants"])
 @router.post("/", response_model=PlantResponse, status_code=status.HTTP_201_CREATED)
 async def create_plant(
     name: str = Form(...),
+    category: str = Form(...),  # Required field
+    price: str = Form(...),  # Receive as string, convert to float
+    stock: Optional[str] = Form(None),  # Accept 'stock' field
+    stock_quantity: Optional[str] = Form(None),  # Also accept 'stock_quantity' for compatibility
     description: Optional[str] = Form(None),
-    price: float = Form(...),
-    category: Optional[str] = Form(None),
+    verified: Optional[str] = Form(None),  # Accept 'verified' field
+    verified_by_ai: Optional[str] = Form(None),  # Also accept 'verified_by_ai' for compatibility
+    image: Optional[UploadFile] = File(None),
+    image_url: Optional[str] = Form(None),  # Alternative to file upload
     species: Optional[str] = Form(None),
     care_instructions: Optional[str] = Form(None),
-    stock_quantity: int = Form(0),
-    image: Optional[UploadFile] = File(None),
-    current_user: User = Depends(require_seller_or_admin),
+    current_user: User = Depends(require_admin),  # Admin only as per frontend requirements
     db: Session = Depends(get_db)
 ):
-    """Create a new plant listing"""
+    """
+    Create a new plant listing (admin only).
+    
+    Required fields:
+    - name: Plant name
+    - category: Plant category (e.g., "Indoor", "Outdoor")
+    - price: Plant price (as string, will be converted to float)
+    - stock: Stock quantity (as string, will be converted to int)
+    
+    Optional fields:
+    - description: Plant description
+    - verified: Verification status ("true" or "false", default: "false")
+    - image: Image file upload (requires S3 configuration)
+    - image_url: Image URL (alternative to file upload)
+    - species: Plant species
+    - care_instructions: Care instructions
+    """
     plant_service = PlantService(db)
     
+    # Determine stock value: prefer 'stock', fallback to 'stock_quantity'
+    stock_value = stock or stock_quantity
+    if not stock_value:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Either 'stock' or 'stock_quantity' field is required"
+        )
+    
+    # Determine verified value: prefer 'verified', fallback to 'verified_by_ai'
+    verified_value = verified or verified_by_ai or "false"
+    
+    # Convert string inputs to proper types
+    try:
+        price_float = float(price)
+        if price_float <= 0:
+            raise ValueError("Price must be greater than 0")
+        stock_int = int(stock_value)
+        if stock_int < 0:
+            raise ValueError("Stock must be non-negative")
+        verified_bool = verified_value.lower() == "true" if verified_value else False
+    except (ValueError, TypeError) as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid input format: {str(e)}"
+        )
+    
+    # Handle image: prefer image_url if provided, otherwise upload file
+    final_image_url = image_url
+    
+    if image and not final_image_url:
+        # Upload image file to S3
+        try:
+            final_image_url = plant_service.upload_image_to_s3(image)
+        except HTTPException:
+            # Re-raise HTTP exceptions (already formatted)
+            raise
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to upload image: {str(e)}"
+            )
+    
+    # Create plant data
     plant_data = PlantCreate(
         name=name,
         description=description,
-        price=price,
+        price=price_float,
         category=category,
         species=species,
         care_instructions=care_instructions,
-        stock_quantity=stock_quantity
+        stock_quantity=stock_int  # Map 'stock' to 'stock_quantity' internally
     )
     
-    plant = plant_service.create_plant(plant_data, current_user.id, image)
+    # Create plant with image_url and verified status
+    plant = plant_service.create_plant(
+        plant_data, 
+        current_user.id, 
+        image_file=None if final_image_url else image,  # Only pass file if no URL
+        image_url=final_image_url,
+        verified_by_ai=verified_bool
+    )
+    
     return plant
 
 

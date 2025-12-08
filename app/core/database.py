@@ -76,10 +76,22 @@ def get_db():
     try:
         yield db
     except Exception as e:
-        # Rollback on any exception
+        # Don't catch HTTPException (authentication errors, etc.) - let them propagate
+        from fastapi import HTTPException
+        if isinstance(e, HTTPException):
+            raise
+        
+        # Rollback on any database-related exception
         db.rollback()
         from app.core.logging import logger
-        logger.error(f"Database session error: {type(e).__name__}: {str(e)}", exc_info=True)
+        # Log error without formatting - use exception() which handles traceback automatically
+        # and doesn't try to format the message string
+        try:
+            logger.exception("Database session error: {}: {}", type(e).__name__, str(e))
+        except Exception:
+            # If logging itself fails, use a simple print to avoid infinite recursion
+            import sys
+            print(f"Database session error: {type(e).__name__}: {str(e)}", file=sys.stderr, flush=True)
         raise
     finally:
         db.close()
