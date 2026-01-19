@@ -1,6 +1,6 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import field_validator, Field
-from typing import List, Optional
+from typing import List, Optional, Union
 import os
 import json
 import sys
@@ -58,6 +58,9 @@ class Settings(BaseSettings):
     # Google Gemini API
     gemini_api_key: Optional[str] = None
     
+    # ML Model Configuration
+    model_confidence_threshold: float = 0.7
+    
     # Redis
     redis_url: str = "redis://localhost:6379/0"
     
@@ -69,7 +72,7 @@ class Settings(BaseSettings):
     rate_limit_per_minute: int = 60
     
     # CORS - stored as string to avoid JSON parsing issues
-    allowed_origins: str = Field(
+    allowed_origins: Union[str, None] = Field(
         default="http://localhost:3000,http://localhost:8080,https://admin-panel-pink-nine.vercel.app,https://admin-panel-git-main-prasads-projects-514b962a.vercel.app",
         description="Comma-separated list of allowed CORS origins"
     )
@@ -91,14 +94,20 @@ class Settings(BaseSettings):
     @classmethod
     def parse_allowed_origins(cls, v):
         """Parse comma-separated string - return as string"""
-        if v is None:
+        # Handle None or empty string
+        if v is None or (isinstance(v, str) and not v.strip()):
             return "http://localhost:3000,http://localhost:8080"
+        # Handle list (if passed programmatically)
         if isinstance(v, list):
-            return ','.join(v)
-        return str(v)
+            return ','.join(str(item) for item in v)
+        # Handle string
+        return str(v).strip()
     
     def get_allowed_origins_list(self) -> List[str]:
         """Get allowed_origins as a list"""
+        # Handle None or empty
+        if not self.allowed_origins:
+            return ["http://localhost:3000", "http://localhost:8080"]
         # If "*" is specified, allow all origins (useful for mobile apps)
         if self.allowed_origins.strip() == "*":
             return ["*"]
@@ -110,6 +119,8 @@ class Settings(BaseSettings):
         case_sensitive=False,
         # Don't parse complex types from env - handle manually
         env_parse_none_str=None,
+        # Allow fields starting with 'model_' without warnings
+        protected_namespaces=(),
     )
 
 
