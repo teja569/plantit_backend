@@ -15,30 +15,37 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 30
     
     # Database
-    # For Prisma Postgres: Use PRISMA_DATABASE_URL (includes connection pooling) for serverless
-    # Falls back to DATABASE_URL if PRISMA_DATABASE_URL is not set
+    # Priority: POSTGRES_PRISMA_URL > PRISMA_DATABASE_URL > POSTGRES_URL > DATABASE_URL
+    # POSTGRES_PRISMA_URL is Supabase's pooled connection (best for serverless)
     database_url: str = "sqlite:///./test.db"  # Default for development
     
     @field_validator('database_url', mode='before')
     @classmethod
     def normalize_database_url(cls, v):
-        """Normalize database URL - prefer PRISMA_DATABASE_URL, convert postgres:// to postgresql://"""
-        # Prefer PRISMA_DATABASE_URL for serverless (includes connection pooling)
-        prisma_url = os.getenv("PRISMA_DATABASE_URL")
-        if prisma_url:
-            v = prisma_url
+        """Normalize database URL - prefer pooled connections for serverless environments"""
+        # Priority order for database URLs
+        # 1. POSTGRES_PRISMA_URL (Supabase pooled connection - best for serverless)
+        postgres_prisma = os.getenv("POSTGRES_PRISMA_URL")
+        if postgres_prisma:
+            v = postgres_prisma
+        # 2. PRISMA_DATABASE_URL (Generic Prisma pooled connection)
+        elif os.getenv("PRISMA_DATABASE_URL"):
+            v = os.getenv("PRISMA_DATABASE_URL")
+        # 3. POSTGRES_URL (Supabase direct connection with pooler)
+        elif os.getenv("POSTGRES_URL"):
+            v = os.getenv("POSTGRES_URL")
+        # 4. DATABASE_URL (Generic fallback)
         elif not v or v == "sqlite:///./test.db":
-            # Fall back to DATABASE_URL if PRISMA_DATABASE_URL not set
             env_url = os.getenv("DATABASE_URL")
             if env_url:
                 v = env_url
         
         if isinstance(v, str) and v.startswith('postgres://'):
             # SQLAlchemy 2.0+ requires postgresql:// instead of postgres://
-            # Preserve query parameters (like sslmode=require for Prisma)
+            # Preserve query parameters (like sslmode=require)
             url = v.replace('postgres://', 'postgresql://', 1)
-            # Ensure sslmode=require for Prisma databases if not already present
-            if 'db.prisma.io' in url and 'sslmode=' not in url:
+            # Ensure sslmode=require for Supabase and Prisma databases if not already present
+            if ('supabase.co' in url or 'db.prisma.io' in url) and 'sslmode=' not in url:
                 separator = '&' if '?' in url else '?'
                 url = f"{url}{separator}sslmode=require"
             return url
@@ -60,6 +67,12 @@ class Settings(BaseSettings):
     
     # ML Model Configuration
     model_confidence_threshold: float = 0.7
+    
+    # Supabase Configuration (optional - for direct API usage)
+    supabase_url: Optional[str] = None
+    supabase_anon_key: Optional[str] = None
+    supabase_service_role_key: Optional[str] = None
+    supabase_jwt_secret: Optional[str] = None
     
     # Redis
     redis_url: str = "redis://localhost:6379/0"
